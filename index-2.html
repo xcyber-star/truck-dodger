@@ -1,0 +1,201 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Truck Dodger Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: linear-gradient(#555, #222);
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: #333;
+      border: 4px solid #fff;
+    }
+    #score, #lives, #startScreen, #gameOverScreen {
+      position: absolute;
+      color: #fff;
+      font-size: 24px;
+      font-family: monospace;
+      text-align: center;
+      width: 100%;
+    }
+    #score { top: 10px; left: 10px; text-align: left; }
+    #lives { top: 10px; right: 10px; text-align: right; }
+    #startScreen, #gameOverScreen {
+      top: 40%;
+      font-size: 32px;
+    }
+    button {
+      font-size: 18px;
+      padding: 10px 20px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="score">Score: 0</div>
+  <div id="lives">Lives: 3</div>
+  <div id="startScreen">
+    <p><strong>Truck Dodger</strong></p>
+    <p>Use ⬅️ and ➡️ to move. Avoid obstacles!</p>
+    <button onclick="startGame()">Start Game</button>
+  </div>
+  <div id="gameOverScreen" style="display:none">
+    <p id="finalScore"></p>
+    <button onclick="restartGame()">Play Again</button>
+  </div>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+  <audio id="pointSound" src="https://actions.google.com/sounds/v1/cartoon/pop.ogg" preload="auto"></audio>
+  <audio id="crashSound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreDisplay = document.getElementById("score");
+    const livesDisplay = document.getElementById("lives");
+    const pointSound = document.getElementById("pointSound");
+    const crashSound = document.getElementById("crashSound");
+    const startScreen = document.getElementById("startScreen");
+    const gameOverScreen = document.getElementById("gameOverScreen");
+    const finalScore = document.getElementById("finalScore");
+
+    const truck = {
+      x: 160,
+      y: 480,
+      width: 80,
+      height: 120,
+      color: "#0af",
+      speed: 5,
+    };
+
+    let obstacles = [];
+    let obstacleTimer = 0;
+    let score = 0;
+    let lives = 3;
+    const keys = {};
+    let gameRunning = false;
+
+    document.addEventListener("keydown", (e) => {
+      keys[e.key] = true;
+    });
+
+    document.addEventListener("keyup", (e) => {
+      keys[e.key] = false;
+    });
+
+    function createObstacle() {
+      const obs = {
+        x: Math.random() * (canvas.width - 50),
+        y: -100,
+        width: 50,
+        height: 100,
+        color: "black",
+        speed: 3 + Math.random() * 2,
+        direction: Math.random() > 0.5 ? 1 : -1,
+      };
+      obstacles.push(obs);
+    }
+
+    function update() {
+      if (!gameRunning) return;
+
+      if (keys["ArrowLeft"] && truck.x > 0) truck.x -= truck.speed;
+      if (keys["ArrowRight"] && truck.x < canvas.width - truck.width) truck.x += truck.speed;
+
+      obstacleTimer++;
+      if (obstacleTimer > 60) {
+        createObstacle();
+        obstacleTimer = 0;
+      }
+
+      for (let i = 0; i < obstacles.length; i++) {
+        const obs = obstacles[i];
+        obs.y += obs.speed;
+        obs.x += obs.direction * 0.5;
+
+        if (obs.y > canvas.height) {
+          obstacles.splice(i, 1);
+          i--;
+          score++;
+          pointSound.play();
+          scoreDisplay.textContent = `Score: ${score}`;
+          continue;
+        }
+
+        if (
+          truck.x < obs.x + obs.width &&
+          truck.x + truck.width > obs.x &&
+          truck.y < obs.y + obs.height &&
+          truck.y + truck.height > obs.y
+        ) {
+          crashSound.play();
+          obstacles.splice(i, 1);
+          i--;
+          lives--;
+          livesDisplay.textContent = `Lives: ${lives}`;
+          if (lives <= 0) {
+            gameOver();
+          }
+        }
+      }
+    }
+
+    function drawRoad() {
+      ctx.fillStyle = "gray";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 4;
+      for (let y = 0; y < canvas.height; y += 40) {
+        ctx.beginPath();
+        ctx.moveTo(canvas.width / 2, y);
+        ctx.lineTo(canvas.width / 2, y + 20);
+        ctx.stroke();
+      }
+    }
+
+    function drawTruck(truck) {
+      ctx.fillStyle = truck.color;
+      ctx.fillRect(truck.x, truck.y, truck.width, truck.height);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(truck.x + 10, truck.y + 10, truck.width - 20, 30);
+    }
+
+    function drawObstacle(obs) {
+      ctx.fillStyle = obs.color;
+      ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawRoad();
+      update();
+      drawTruck(truck);
+      obstacles.forEach(drawObstacle);
+      requestAnimationFrame(gameLoop);
+    }
+
+    function startGame() {
+      startScreen.style.display = "none";
+      gameRunning = true;
+      gameLoop();
+    }
+
+    function gameOver() {
+      gameRunning = false;
+      gameOverScreen.style.display = "block";
+      finalScore.innerHTML = `Game Over!<br>Your Score: ${score}`;
+    }
+
+    function restartGame() {
+      location.reload();
+    }
+  </script>
+</body>
+</html>
